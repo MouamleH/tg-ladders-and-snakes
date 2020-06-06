@@ -19,6 +19,11 @@ public class UserBaseService {
 
     @Transactional(propagation = Propagation.REQUIRED)
     public DBPlayer savePlayer(Player player) {
+        Optional<Player> oPlayer = getPlayerByUserId(player.getUserId());
+        if (oPlayer.isPresent()) {
+            return null;
+        }
+
         DBPlayer dbPlayer = new DBPlayer();
         dbPlayer.setDisplayName(player.getDisplayName());
         dbPlayer.setUsername(player.getUsername());

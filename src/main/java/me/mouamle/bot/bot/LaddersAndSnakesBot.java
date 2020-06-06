@@ -4,9 +4,12 @@ import lombok.extern.slf4j.Slf4j;
 import me.mouamle.bot.bot.keyboard.GameStartKeyboard;
 import me.mouamle.bot.bot.keyboard.KeyboardHandler;
 import me.mouamle.bot.bot.keyboard.KeyboardUtils;
+import me.mouamle.bot.data.UserBaseService;
 import me.mouamle.bot.game.GameManager;
 import me.mouamle.bot.game.GameManagerResponse;
 import me.mouamle.bot.game.Resources;
+import me.mouamle.bot.game.objects.GameSession;
+import me.mouamle.bot.game.render.GameRenderer;
 import mouamle.processor.KeyboardProcessor;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -14,13 +17,16 @@ import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Dice;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 
@@ -31,10 +37,10 @@ public class LaddersAndSnakesBot extends TelegramLongPollingBot {
     private final Resources resources;
     private final GameManager gameManager;
 
-    public LaddersAndSnakesBot(Resources resources, GameManager gameManager) {
+    public LaddersAndSnakesBot(Resources resources, GameManager gameManager, UserBaseService userBaseService) {
         this.resources = resources;
         this.gameManager = gameManager;
-        KeyboardProcessor.registerHandler(new KeyboardHandler(this));
+        KeyboardProcessor.registerHandler(new KeyboardHandler(this, userBaseService));
     }
 
     public void onUpdateReceived(Update update) {
@@ -43,10 +49,11 @@ public class LaddersAndSnakesBot extends TelegramLongPollingBot {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (message.isGroupMessage() || message.isSuperGroupMessage()) {
-                if (message.getChatId() != -350997585) {
-                    execute(new SendMessage(message.getChatId(), "Can't use me, yet"));
-                    return;
-                }
+                // message.getChatId() != -350997585
+//                if (message.getChatId() != -1001278135261L) {
+//                    execute(new SendMessage(message.getChatId(), "Can't use me, yet"));
+//                    return;
+//                }
                 handleGroupMessage(message);
             } else if (message.isUserMessage()) {
                 handleUserMessage(message);
@@ -121,8 +128,47 @@ public class LaddersAndSnakesBot extends TelegramLongPollingBot {
                 }
             }
         } else if (message.hasDice()) {
-            Dice dice = message.getDice();
             // Handle a player dice roll
+            Dice dice = message.getDice();
+            if (dice.getEmoji().equals("\uD83C\uDFB2")) {
+                Integer value = dice.getValue();
+                GameManagerResponse response = gameManager.diceRolled(message.getChatId(), message.getFrom().getId(), value);
+                if (!response.isSuccessful()) {
+                    execute(new SendMessage(message.getChatId(), response.getMessage()));
+                    return;
+                }
+
+                Message statusMessage = execute(new SendMessage(message.getChatId(), "moving by: " + value).setReplyToMessageId(message.getMessageId()));
+
+                GameSession session = gameManager.getSession(message.getChatId());
+                File file = GameRenderer.renderGame(session);
+
+                StringBuilder caption = new StringBuilder("Last Movement\n");
+                caption.append(message.getFrom().getFirstName())
+                        .append(" moved to: ").append(session.getPlayerPosition(message.getFrom().getId()) + 1).append("\n\n");
+
+                caption.append("Players List:\n");
+                session.getPlayersPositions().forEach((player, position) -> {
+                    caption.append("- ").append(player.getDisplayName()).append(" is at: ").append(position + 1).append('\n');
+                });
+
+                InputMediaPhoto media = new InputMediaPhoto();
+                media.setMedia(file, "test");
+                media.setCaption(caption.toString());
+
+                EditMessageMedia edit = new EditMessageMedia();
+                edit.setChatId(session.getChatId());
+                edit.setMessageId(session.getMessageId());
+                edit.setMedia(media);
+
+                try {
+                    execute(edit);
+                    execute(new DeleteMessage(message.getChatId(), message.getMessageId()));
+                    execute(new DeleteMessage(message.getChatId(), statusMessage.getMessageId()));
+                } catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
