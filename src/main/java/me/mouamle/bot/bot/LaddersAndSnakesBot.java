@@ -5,6 +5,7 @@ import me.mouamle.bot.bot.keyboard.GameStartKeyboard;
 import me.mouamle.bot.bot.keyboard.KeyboardHandler;
 import me.mouamle.bot.bot.keyboard.KeyboardUtils;
 import me.mouamle.bot.game.GameManager;
+import me.mouamle.bot.game.GameManagerResponse;
 import me.mouamle.bot.game.Resources;
 import mouamle.processor.KeyboardProcessor;
 import org.springframework.stereotype.Component;
@@ -12,6 +13,7 @@ import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Dice;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -108,11 +110,15 @@ public class LaddersAndSnakesBot extends TelegramLongPollingBot {
                     Message sentMessage = execute(send);
                     long chatId = message.getChatId();
                     int userId = message.getFrom().getId();
-                    gameManager.newGame(chatId, userId, sentMessage.getMessageId());
+
+                    GameManagerResponse response = gameManager.newGame(chatId, userId, sentMessage.getMessageId());
+                    if (!response.isSuccessful()) {
+                        execute(new DeleteMessage(sentMessage.getChatId(), sentMessage.getMessageId()));
+                        execute(new SendMessage(message.getChatId(), response.getMessage()));
+                    }
                 } catch (TelegramApiException e) {
                     execute(new SendMessage(message.getChatId(), "Could not start a game!"));
                 }
-
             }
         } else if (message.hasDice()) {
             Dice dice = message.getDice();

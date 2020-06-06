@@ -9,6 +9,12 @@ import java.util.Date;
 
 @Data
 @Entity
+@NamedQueries({
+        @NamedQuery(
+                name = "Player.findByUserId",
+                query = "SELECT p FROM DBPlayer p where p.userId = :userId"
+        )
+})
 public class DBPlayer {
 
     @Id

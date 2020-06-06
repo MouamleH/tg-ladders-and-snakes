@@ -4,7 +4,9 @@ public interface TickHandler {
 
     /**
      * Called every second
+     *
+     * @param ticks represents the passed ticks
      */
-    void tick();
+    void tick(long ticks);
 
 }

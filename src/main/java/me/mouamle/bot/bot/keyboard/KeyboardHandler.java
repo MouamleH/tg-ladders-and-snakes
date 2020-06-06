@@ -31,6 +31,7 @@ public class KeyboardHandler {
         AnswerCallbackQuery answer = new AnswerCallbackQuery();
         answer.setCallbackQueryId(query.getId());
         answer.setCacheTime(5);
+        answer.setText("Ok");
 
         String data = query.getData();
         if (data.equals(GameStartKeyboard.TEXT_START_GAME)) {
@@ -53,7 +54,6 @@ public class KeyboardHandler {
                 answer.setShowAlert(true);
                 answer.setText(response.getMessage());
             }
-
 
         } else {
             answer.setShowAlert(true);
