@@ -5,6 +5,7 @@ import me.mouamle.bot.game.Resources;
 import me.mouamle.bot.game.events.TickHandler;
 import me.mouamle.bot.game.objects.actions.BoardActionResult;
 import me.mouamle.bot.game.objects.actions.BoardMessage;
+import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.awt.*;
 import java.util.List;
@@ -14,7 +15,7 @@ import java.util.*;
 public class GameSession implements TickHandler {
 
     private final String sessionId = UUID.randomUUID().toString();
-    private static final Color[] colors = {
+    public static final Color[] colors = {
             new Color(223, 57, 67),  // Red
             new Color(72, 178, 43),  // Green
             new Color(33, 76, 198),  // Blue
@@ -26,6 +27,7 @@ public class GameSession implements TickHandler {
     private long chatId;
     private int creatorId;
     private int messageId;
+    private Message message;
 
     private GameState gameState = GameState.WAITING;
     private Resources.Board gameBoard;
@@ -36,10 +38,11 @@ public class GameSession implements TickHandler {
     private Map<Player, Integer> playersPositions = new HashMap<>();
     private Map<Player, Long> lastPlayerActions = new HashMap<>();
 
-    public GameSession(long chatId, int creatorId, int messageId, Resources.Board gameBoard) {
+    public GameSession(long chatId, int creatorId, int messageId, Message message, Resources.Board gameBoard) {
         this.chatId = chatId;
         this.creatorId = creatorId;
         this.messageId = messageId;
+        this.message = message;
         this.gameBoard = gameBoard;
     }
 
@@ -63,13 +66,35 @@ public class GameSession implements TickHandler {
             return new BoardActionResult(player, playersPositions.get(player), BoardMessage.NOT_YOUR_TURN);
         }
 
-        BoardActionResult boardActionResult = movePlayerBy(player, value);
-        if (boardActionResult.getMessage() != BoardMessage.OK) {
-            return boardActionResult;
+        BoardActionResult result = movePlayerBy(player, value);
+        BoardMessage resultMessage = result.getMessage();
+
+        if (resultMessage == BoardMessage.OK) {
+            checkPosition(player, playersPositions.get(player));
+        }
+        getNextPlayer();
+
+        if (resultMessage != BoardMessage.OK) {
+            return result;
         }
 
-        getNextPlayer();
         return new BoardActionResult(player, playersPositions.get(player), BoardMessage.OK);
+    }
+
+    private void checkPosition(Player player, int position) {
+
+        for (Resources.Ladder ladder : gameBoard.getLadders()) {
+            if (position + 1 == ladder.getStart()) {
+                movePlayerTo(player, ladder.getEnd() - 1);
+            }
+        }
+
+        for (Resources.Snecc snecc : gameBoard.getSneccs()) {
+            if (position + 1 == snecc.getStart()) {
+                movePlayerTo(player, snecc.getEnd() - 1);
+            }
+        }
+
     }
 
     public Player getCurrentPlayer() {
@@ -122,8 +147,12 @@ public class GameSession implements TickHandler {
         lastPlayerActions.put(player, System.currentTimeMillis());
         log.info("Moving player {} by {}", player.getUsername(), offset);
         int currentPosition = playersPositions.getOrDefault(player, 0);
-        if (currentPosition + offset > 100) {
+        if (currentPosition + offset >= 100) {
             return new BoardActionResult(player, currentPosition, BoardMessage.MORE_THAN_100);
+        }
+
+        if (currentPosition + offset == 99) {
+            gameState = GameState.FINISHED;
         }
 
         playersPositions.put(player, currentPosition + offset);
@@ -148,6 +177,20 @@ public class GameSession implements TickHandler {
         return playersPositions;
     }
 
+    public List<Player> getPlayersByPosition(int playerPosition) {
+        Map<Integer, List<Player>> players = new HashMap<>();
+        playersPositions.forEach((player, position) -> {
+            List<Player> list = players.getOrDefault(position, new ArrayList<>());
+            list.add(player);
+            players.put(position, list);
+        });
+
+        return players.entrySet().stream()
+                .filter(entry -> entry.getKey() == playerPosition)
+                .map(Map.Entry::getValue)
+                .findFirst().orElse(new ArrayList<>());
+    }
+
     public long getChatId() {
         return chatId;
     }
@@ -170,5 +213,9 @@ public class GameSession implements TickHandler {
 
     public Resources.Board getGameBoard() {
         return gameBoard;
+    }
+
+    public Message getMessage() {
+        return message;
     }
 }

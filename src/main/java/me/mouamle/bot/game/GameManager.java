@@ -8,6 +8,7 @@ import me.mouamle.bot.game.objects.Player;
 import me.mouamle.bot.game.objects.actions.BoardActionResult;
 import me.mouamle.bot.game.objects.actions.BoardMessage;
 import org.springframework.stereotype.Component;
+import org.telegram.telegrambots.meta.api.objects.Message;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -41,14 +42,14 @@ public class GameManager {
         }, 0, 1, TimeUnit.SECONDS);
     }
 
-    public GameManagerResponse newGame(long chatId, int userId, int messageId) {
+    public GameManagerResponse newGame(long chatId, int userId, Message message) {
         log.info("Player {} starting a game in chat {}", userId, chatId);
         if (sessions.containsKey(chatId)) {
             log.warn("Chat {} already has a running game", chatId);
             return new GameManagerResponse("A Chat can't have multiple running games", false);
         }
 
-        GameSession session = new GameSession(chatId, userId, messageId, Resources.Board.EASY);
+        GameSession session = new GameSession(chatId, userId, message.getMessageId(), message, Resources.Board.EASY);
         sessions.put(chatId, session);
 
         return new GameManagerResponse("ok", true);
@@ -83,6 +84,10 @@ public class GameManager {
         }
         GameSession session = sessions.get(chatId);
 
+        if (session.getPlayers().size() + 1 == 7) {
+            return new GameManagerResponse("Full game!", false);
+        }
+
         Optional<Player> oPlayer = userBaseService.getPlayerByUserId(userId);
         if (!oPlayer.isPresent()) {
             return new GameManagerResponse("An error occurred", false);
@@ -105,6 +110,10 @@ public class GameManager {
         }
         GameSession session = sessions.get(chatId);
 
+        if (session.getPlayers().size() == 1) {
+            return new GameManagerResponse("Not enough players!", false);
+        }
+
         if (session.getCreatorId() != userId) {
             return new GameManagerResponse("Can't start a game that is not yours", false);
         }
@@ -123,6 +132,11 @@ public class GameManager {
         }
 
         return new GameManagerResponse("ok", true);
+    }
+
+    public void deleteGame(long chatId) {
+        GameSession session = sessions.get(chatId);
+        sessions.remove(chatId);
     }
 
     public GameManagerResponse gameCancelRequest(long chatId, int userId, int messageId) {
