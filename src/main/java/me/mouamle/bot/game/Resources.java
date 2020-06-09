@@ -12,18 +12,6 @@ public class Resources {
         return new File("boards/easy.png");
     }
 
-    @Value
-    public static class Ladder {
-        int start;
-        int end;
-    }
-
-    @Value
-    public static class Snecc {
-        int start;
-        int end;
-    }
-
     public enum Board {
         EASY("boards/easy.png",
                 new Snecc[]{
@@ -48,8 +36,8 @@ public class Resources {
 
         private final File file;
 
-        private final Snecc sneccs[];
-        private final Ladder ladders[];
+        private final Snecc[] sneccs;
+        private final Ladder[] ladders;
 
         Board(String path, Snecc[] sneccs, Ladder[] ladders) {
             this.file = new File(path);
@@ -69,6 +57,18 @@ public class Resources {
             return ladders;
         }
 
+    }
+
+    @Value
+    public static class Ladder {
+        int start;
+        int end;
+    }
+
+    @Value
+    public static class Snecc {
+        int start;
+        int end;
     }
 
 }

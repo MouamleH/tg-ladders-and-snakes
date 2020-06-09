@@ -14,7 +14,6 @@ import java.util.*;
 @Slf4j
 public class GameSession implements TickHandler {
 
-    private final String sessionId = UUID.randomUUID().toString();
     public static final Color[] colors = {
             new Color(223, 57, 67),  // Red
             new Color(72, 178, 43),  // Green
@@ -23,20 +22,20 @@ public class GameSession implements TickHandler {
             new Color(249, 221, 0),  // Yellow
             new Color(249, 126, 14)  // Orange
     };
-
-    private long chatId;
-    private int creatorId;
-    private int messageId;
-    private Message message;
+    private final String sessionId = UUID.randomUUID().toString();
+    private final long chatId;
+    private final int creatorId;
+    private final int messageId;
+    private final Message message;
 
     private GameState gameState = GameState.WAITING;
-    private Resources.Board gameBoard;
+    private final Resources.Board gameBoard;
 
     private int currentPlayerIndex = 0;
-    private List<Player> players = new LinkedList<>();
+    private final List<Player> players = new LinkedList<>();
 
-    private Map<Player, Integer> playersPositions = new HashMap<>();
-    private Map<Player, Long> lastPlayerActions = new HashMap<>();
+    private final Map<Player, Integer> playersPositions = new HashMap<>();
+    private final Map<Player, Long> lastPlayerActions = new HashMap<>();
 
     public GameSession(long chatId, int creatorId, int messageId, Message message, Resources.Board gameBoard) {
         this.chatId = chatId;

@@ -54,11 +54,6 @@ public class LaddersAndSnakesBot extends TelegramLongPollingBot {
         if (update.hasMessage()) {
             Message message = update.getMessage();
             if (message.isGroupMessage() || message.isSuperGroupMessage()) {
-                // message.getChatId() != -350997585
-//                if (message.getChatId() != -1001278135261L) {
-//                    execute(new SendMessage(message.getChatId(), "Can't use me, yet"));
-//                    return;
-//                }
                 handleGroupMessage(message);
             } else if (message.isUserMessage()) {
                 handleUserMessage(message);
